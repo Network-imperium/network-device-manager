@@ -13,4 +13,4 @@ pip install -r requirements.txt
     6. Execute commands
 
 ## Preview
-    ![Screenshot](assets/ndm_preview.png)
+    ![Screenshot](./assets/ndm_preview.png)
