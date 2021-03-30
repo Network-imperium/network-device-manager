@@ -1,5 +1,5 @@
 # Network device manager
-Simple graphic manager, which helps in managing network devices (switches, routers, firewalls) from diffrent brands (Cisco, ~~HPE~~, ~~Fortigate~~, ~~Ubiquiti~~)
+Simple graphic manager, which helps in managing network devices (switches, routers, firewalls) from diffrent brands (Cisco, ~~HPE~~, ~~Fortigate~~, ~~Ubiquiti~~). Functional part of bigger, not yet released project.
 
 ## Usage
     1. Clone github repo
@@ -13,4 +13,4 @@ pip install -r requirements.txt
     6. Execute commands
 
 ## Preview
-    ![Screenshot](./assets/ndm_preview.png)
+   ![Screenshot](/assets/ndm_preview.png)
