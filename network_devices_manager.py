@@ -128,7 +128,7 @@ class MainApp:
 
     def execute_save_run (self):
         if self.client:
-            config = [lie.replace('\n', '') for line in self.client.execute("show run")]
+            config = [line.replace('\n', '') for line in self.client.execute("show run")]
             filename = self.current_device.name + '_' + str(datetime.now().date()).replace('-','')
             with open(filename, "w") as file:
                 file.write(''.join(config))
