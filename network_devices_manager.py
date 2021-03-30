@@ -1,4 +1,6 @@
+import json
 import tkinter as tk
+from datetime import datetime
 from tkinter.font import Font
 from ssh_executor import *
 
@@ -14,16 +16,20 @@ class MainApp:
         self.device_name = tk.StringVar(value="Device name")
         self.username = tk.StringVar(value="Auth username")
         self.password = tk.StringVar(value="Password")
+        self.command = tk.StringVar(value="Device commands")
 
         default_font = tk.font.nametofont("TkFixedFont")
         default_font.configure(size=8)
+
+        # Define app variables
+        self.current_device = None
+        self.devices = []
+        self.commands = ["Refresh", "Save run", "Save startup", "Save version", "Run terminal"]
 
         # Define graphic elements
         self.master = master
         self.master.option_add("*Font", default_font)
         self.master.title("Imperium - Tools - Network Devices Manager")
-
-        self.label_functions = tk.Label(master, text="Device commands")
 
         self.entry_host = tk.Entry(master, textvariable=self.host)
         self.entry_name = tk.Entry(master, textvariable=self.device_name)
@@ -31,69 +37,81 @@ class MainApp:
         self.entry_password = tk.Entry(master, textvariable=self.password)
 
         self.button_add_device = tk.Button(master, text="Add", command=self.add_device)
-        self.button_refresh_status = tk.Button(master, text="Refresh", command=self.refresh_status)
         self.button_connect = tk.Button(master, text="Connect", command=self.login)
         self.button_remove_device = tk.Button(master, text="Delete", command=self.remove_device)
-        self.button_exec_1 = tk.Button(master, text="Show run", command=self.show_runn_config)
-        self.button_exec_2 = tk.Button(master, text="Show interfaces", command=self.show_runn_config)
-        self.button_exec_3 = tk.Button(master, text="Show details", command=self.show_runn_config)
-        self.button_exec_4 = tk.Button(master, text="Show version", command=self.show_runn_config)
-        self.button_exec_5 = tk.Button(master, text="Show hardware", command=self.show_runn_config)
-        self.button_exec_6 = tk.Button(master, text="Backup run", command=self.show_runn_config)
-        self.button_exec_7 = tk.Button(master, text="Backup startup", command=self.show_runn_config)
 
         self.scroll_devices = tk.Scrollbar(master)
 
         self.list_devices = tk.Listbox(master, selectmode=tk.SINGLE, xscrollcommand=self.scroll_devices.set)
 
-        # Stick elements to the window
-        self.label_functions.grid(row=0, column=5, sticky=tk.W+tk.E)
+        self.menu_commands = tk.OptionMenu(master, self.command, *self.commands)
 
+        # Stick elements to the window
         self.entry_host.grid(row=0, column=0, sticky=tk.W+tk.E)
         self.entry_name.grid(row=0, column=1, sticky=tk.W+tk.E)
         self.entry_username.grid(row=7, column=0, sticky=tk.W+tk.E)
         self.entry_password.grid(row=7, column=1, sticky=tk.W+tk.E)
 
         self.button_add_device.grid(row=0, column=2, sticky=tk.W+tk.E)
-        self.button_refresh_status.grid(row=0, column=3, sticky=tk.W+tk.E)
         self.button_connect.grid(row=7, column=2, sticky=tk.W+tk.E)
-        self.button_remove_device.grid(row=7, column=3, sticky=tk.W+tk.E)
-        self.button_exec_1.grid(row=1, column=5, sticky=tk.W+tk.E)
-        self.button_exec_2.grid(row=2, column=5, sticky=tk.W+tk.E)
-        self.button_exec_3.grid(row=3, column=5, sticky=tk.W+tk.E)
-        self.button_exec_4.grid(row=4, column=5, sticky=tk.W+tk.E)
-        self.button_exec_5.grid(row=5, column=5, sticky=tk.W+tk.E)
-        self.button_exec_6.grid(row=6, column=5, sticky=tk.W+tk.E)
-        self.button_exec_7.grid(row=7, column=5, sticky=tk.W+tk.E)
+        self.button_remove_device.grid(row=7, column=3, columnspan=2, ipadx="40px", sticky=tk.W+tk.E)
 
-        self.scroll_devices.grid(row=1, column=3, rowspan=6, sticky=tk.N+tk.S)
-        self.list_devices.grid(row=1, columnspan=3, rowspan=6, sticky=tk.W+tk.E)
+        self.scroll_devices.grid(row=1, column=4, rowspan=6, sticky=tk.N+tk.S)
+        self.list_devices.grid(row=1, columnspan=4, rowspan=6, sticky=tk.W+tk.E)
+
+        self.menu_commands.grid(row=0, column=3, columnspan=2, sticky=tk.W+tk.E)
 
         # Init state of GUI elements
-        self.list_devices.insert(0, 'IP'.center(16) + 'NAME'.center(20) + 'STATUS'.center(12))
+        self.list_devices.insert(0, 'IP'.center(16) + 'NAME'.center(24) + 'STATUS'.center(14))
+        self.command.trace("w", self.execute_command)
+        self.load_config_json()
 
-        # Define app variables
-        self.devices = []
+    def load_config_json (self):
+        try:
+            with open("ndm_config.json", "r+") as file:
+                for device in json.loads(file.read()):
+                    host = device['host']
+                    name = device['name']
+                    self.list_devices.insert(tk.END, host.ljust(16) + name.ljust(24))
+                    
+                    device = Device(host, name)
+                    self.devices.append(device)
+        except IOError:
+            print("File not accessible")
+
+    def update_config_json (self):
+        with open("ndm_config.json", "w") as file:
+            file.write(json.dumps([device.__dict__ for device in self.devices]))
+            file.close()
 
     def add_device (self):
         host = str(self.host.get())
         name = str(self.device_name.get())
-        self.list_devices.insert(tk.END, host.ljust(16) + name.ljust(2))
+        self.list_devices.insert(tk.END, host.ljust(16) + name.ljust(24))
 
         device = Device(host, name)
         self.devices.append(device)
 
-    def refresh_status (self):
-        pass   
+        self.update_config_json()
+
+    def execute_command (self, *args):
+        command = self.command.get()
+        if command == self.commands[0]:
+            self.refresh_status()
+
+        if command == self.commands[1]:
+            self.execute_save_run()
+        
+        self.command.set("Device commands")
 
     def login (self):
         selection = self.list_devices.curselection()
         if selection and selection[0] != 0:
-            host = self.devices[selection[0] - 1].host
+            self.current_device = self.devices[selection[0] - 1]
             username = self.username.get()
             password = self.password.get()
 
-            self.client = Client(host, username, password)
+            self.client = Client(self.current_device.host, username, password)
             self.client._connect()
             return self.client
 
@@ -103,10 +121,16 @@ class MainApp:
             self.list_devices.delete(selection[0])
             self.devices.pop(selection[0] - 1)
 
-    def show_runn_config (self):
-        print(self.client.execute("show run"))
+            self.update_config_json()
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = MainApp(root)
-    root.mainloop()
+    def refresh_status (self):
+        pass   
+
+    def execute_save_run (self):
+        if self.client:
+            config = [lie.replace('\n', '') for line in self.client.execute("show run")]
+            filename = self.current_device.name + '_' + str(datetime.now().date()).replace('-','')
+            with open(filename, "w") as file:
+                file.write(''.join(config))
+                file.close()
+
